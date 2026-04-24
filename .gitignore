@@ -39,5 +39,7 @@ DerivedData/
 .metro-health-check*
 
 # Editor / OS files
+.idea/
+.vscode/
 .DS_Store
 Thumbs.db
