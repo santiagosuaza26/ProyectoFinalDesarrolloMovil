@@ -186,53 +186,51 @@ function RidePanel({ estimate, selectedVehicle, totalFare, extraTip, loading, on
     if (!estimate) return (
         <Animated.View entering={FadeInDown} style={styles.panelCard}>
             <View style={styles.waitingContainer}>
-                <Text style={styles.waitingTitle}>{t('rideWithDidi')}</Text>
-                <Text style={styles.waitingSubtitle}>{t('selectDestToStart')}</Text>
+                <Text style={styles.waitingTitle}>¡Pide tu Didi ahora!</Text>
+                <Text style={styles.waitingSubtitle}>Selecciona un destino para ver precios</Text>
             </View>
         </Animated.View>
     );
 
     return (
         <Animated.View layout={Layout.springify()} entering={FadeInDown.duration(600)} style={styles.panelCard}>
+            <View style={styles.routeStatsRow}>
+                <View style={styles.routeStat}>
+                    <Ionicons name="navigate" size={16} color="#6b7280" />
+                    <Text style={styles.routeStatText}>{estimate.distanceKm} km</Text>
+                </View>
+                <View style={styles.routeStat}>
+                    <Ionicons name="time" size={16} color="#6b7280" />
+                    <Text style={styles.routeStatText}>{estimate.durationMinutes} min</Text>
+                </View>
+            </View>
+
             <VehicleSelector value={selectedVehicle} onChange={onVehicleChange} />
+            
             <View style={styles.tipContainer}>
                 <View style={styles.tipHeader}>
                     <Text style={styles.tipLabel}>Propina de incentivo</Text>
-                    <Text style={styles.tipIncentive}>Incentiva a los conductores para una respuesta más rápida</Text>
+                    <Text style={styles.tipIncentive}>Aumenta la prioridad de tu solicitud</Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tipOptions}>
                     {tipAmounts.map(amt => (
-                        <TouchableOpacity 
-                            key={amt} 
-                            style={[
-                                styles.tipBtn, 
-                                extraTip === amt && styles.tipBtnActive,
-                                amt >= 10000 && { borderColor: '#fbbf24' }
-                            ]} 
-                            onPress={() => onTipChange(amt)}
-                        >
-                            <Text style={[styles.tipText, extraTip === amt && styles.tipTextActive]}>
-                                {amt === 0 ? 'Estándar' : `+$${amt/1000}k`}
-                            </Text>
+                        <TouchableOpacity key={amt} style={[styles.tipBtn, extraTip === amt && styles.tipBtnActive]} onPress={() => onTipChange(amt)}>
+                            <Text style={[styles.tipText, extraTip === amt && styles.tipTextActive]}>{amt === 0 ? 'Estándar' : `+$${amt/1000}k`}</Text>
                         </TouchableOpacity>
                     ))}
-                    <TouchableOpacity 
-                        style={[styles.customTipBtn, extraTip > 10000 && styles.tipBtnActive]} 
-                        onPress={onCustomTip}
-                    >
+                    <TouchableOpacity style={[styles.customTipBtn, extraTip > 10000 && styles.tipBtnActive]} onPress={onCustomTip}>
                         <Ionicons name="add-circle" size={18} color={extraTip > 10000 ? "white" : "#ff7d00"} />
-                        <Text style={[styles.customTipText, extraTip > 10000 && { color: 'white' }]}>
-                            {extraTip > 10000 ? `$${extraTip.toLocaleString()}` : 'Otro'}
-                        </Text>
+                        <Text style={[styles.customTipText, extraTip > 10000 && { color: 'white' }]}>{extraTip > 10000 ? `$${extraTip/1000}k` : 'Otro'}</Text>
                     </TouchableOpacity>
                 </ScrollView>
             </View>
+
             <View style={styles.footer}>
                 <View>
-                    <Text style={styles.totalFareLabel}>{t('totalPrice')}</Text>
+                    <Text style={styles.totalFareLabel}>Precio total</Text>
                     <Text style={styles.totalValue}>${totalFare.toLocaleString('es-CO')}</Text>
                 </View>
-                <AppButton loading={loading} onPress={onRequest} title={t('requestRideNow')} style={styles.requestButton} />
+                <AppButton loading={loading} onPress={onRequest} title="Pedir Viaje" style={styles.requestButton} />
             </View>
         </Animated.View>
     );
@@ -269,6 +267,9 @@ const styles = StyleSheet.create({
     waitingContainer: { alignItems: 'center', paddingVertical: 10 },
     waitingTitle: { fontSize: 20, fontWeight: '900', color: '#111827', marginBottom: 5 },
     waitingSubtitle: { fontSize: 14, color: '#6b7280', fontWeight: '600' },
+    routeStatsRow: { flexDirection: 'row', gap: 15, marginBottom: 15, backgroundColor: '#f9fafb', padding: 10, borderRadius: 12, alignSelf: 'flex-start' },
+    routeStat: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    routeStatText: { fontSize: 13, fontWeight: '800', color: '#4b5563' },
     tipContainer: { marginTop: 15 },
     tipLabel: { fontSize: 13, fontWeight: '900', color: '#111827', textTransform: 'uppercase' },
     tipIncentive: { fontSize: 11, color: '#6b7280', fontWeight: '600', marginTop: 1 },
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
     customTipBtn: { flexDirection: 'row', alignItems: 'center', minWidth: 90, paddingHorizontal: 12, borderRadius: 16, borderStyle: 'dashed', borderWidth: 2, borderColor: '#ff7d00', gap: 5, backgroundColor: '#fff7ed' },
     customTipText: { fontSize: 12, fontWeight: '900', color: '#ff7d00' },
     footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-    totalFareLabel: { fontSize: 12, fontWeight: '700', color: '#6b7280' },
+    totalFareLabel: { fontSize: 12, fontWeight: '800', color: '#6b7280', textTransform: 'uppercase' },
     totalValue: { fontSize: 28, fontWeight: '900', color: '#111827' },
     requestButton: { width: width * 0.45, height: 55, borderRadius: 18 },
     markerIcon: { width: 45, height: 45, resizeMode: 'contain' },

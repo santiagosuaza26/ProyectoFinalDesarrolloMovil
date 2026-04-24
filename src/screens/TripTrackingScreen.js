@@ -23,6 +23,18 @@ const CAR_ICON = 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png';
 
 const AnimatedMarker = Animated.createAnimatedComponent(Marker);
 
+// Función auxiliar para calcular distancia entre coordenadas (en Km)
+const getDistance = (lat1, lon1, lat2, lng2) => {
+    const R = 6371; // Radio de la tierra
+    const dLat = (lat2 - lat1) * (Math.PI / 180);
+    const dLng = (lng2 - lon1) * (Math.PI / 180);
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+};
+
 export function TripTrackingScreen({ route, navigation }) {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
@@ -35,6 +47,7 @@ export function TripTrackingScreen({ route, navigation }) {
     const carLat = useSharedValue(0);
     const carLng = useSharedValue(0);
 
+    // 1. useMemo para estados booleanos
     const statusFlags = useMemo(() => ({
         isRequested: trip?.status === 'requested',
         isCompleted: trip?.status === 'completed',
@@ -43,6 +56,25 @@ export function TripTrackingScreen({ route, navigation }) {
         isAssigned: trip?.status === 'driver_assigned',
         isPaid: trip?.paymentStatus === 'paid'
     }), [trip?.status, trip?.paymentStatus]);
+
+    // 2. useMemo para cálculos de distancia y tiempo dinámicos
+    const tripStats = useMemo(() => {
+        if (!trip || !trip.driverLocation) return { distance: 0, time: 0 };
+        
+        const target = statusFlags.isInProgress ? trip.destination : trip.origin;
+        const dist = getDistance(
+            trip.driverLocation.latitude, 
+            trip.driverLocation.longitude, 
+            target.latitude, 
+            target.longitude
+        );
+        
+        // Estimación simple: 40km/h promedio (1.5 min por km)
+        return {
+            distance: dist.toFixed(1),
+            time: Math.round(dist * 1.5) || 1
+        };
+    }, [trip?.driverLocation, trip?.destination, trip?.origin, statusFlags.isInProgress]);
 
     const carAnimatedProps = useAnimatedProps(() => ({
         coordinate: { latitude: carLat.value, longitude: carLng.value },
@@ -213,6 +245,7 @@ export function TripTrackingScreen({ route, navigation }) {
                                     trip={trip} 
                                     flags={statusFlags} 
                                     loading={loading} 
+                                    stats={tripStats}
                                     onStart={() => handleStatusUpdate('in_progress')} 
                                     onCancel={() => handleStatusUpdate('cancelled')} 
                                 />
@@ -250,7 +283,7 @@ function OfferList({ offers, onAccept }) {
     );
 }
 
-function DriverStatusCard({ trip, flags, loading, onStart, onCancel }) {
+function DriverStatusCard({ trip, flags, loading, stats, onStart, onCancel }) {
     return (
         <View style={styles.driverCard}>
             <View style={styles.driverHeader}>
@@ -268,6 +301,27 @@ function DriverStatusCard({ trip, flags, loading, onStart, onCancel }) {
                     <TouchableOpacity style={[styles.circleBtn, { marginLeft: 10 }]}><Ionicons name="call" size={20} color="#111827" /></TouchableOpacity>
                 </View>
             </View>
+
+            {/* PANEL DE CÁLCULOS DINÁMICOS */}
+            {!flags.isCompleted && (
+                <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                        <Ionicons name="navigate-circle" size={20} color="#ff7d00" />
+                        <View>
+                            <Text style={styles.statValue}>{stats.distance} km</Text>
+                            <Text style={styles.statLabel}>{flags.isInProgress ? 'Para llegar' : 'Para recogerte'}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                        <Ionicons name="time" size={20} color="#ff7d00" />
+                        <View>
+                            <Text style={styles.statValue}>{stats.time} min</Text>
+                            <Text style={styles.statLabel}>Est. de llegada</Text>
+                        </View>
+                    </View>
+                </View>
+            )}
 
             {flags.isArriving && (
                 <Animated.View entering={FadeInUp} style={styles.arrivalNotice}>
@@ -324,6 +378,11 @@ const styles = StyleSheet.create({
     driverPhoto: { width: 60, height: 60, borderRadius: 30 },
     driverName: { fontSize: 20, fontWeight: '900' },
     vehicleText: { fontSize: 13, color: '#6b7280' },
+    statsRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9fafb', borderRadius: 18, padding: 15, marginVertical: 5 },
+    statItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+    statValue: { fontSize: 15, fontWeight: '900', color: '#111827' },
+    statLabel: { fontSize: 10, color: '#6b7280', fontWeight: '700', textTransform: 'uppercase' },
+    statDivider: { width: 1, height: 30, backgroundColor: '#e5e7eb', marginHorizontal: 15 },
     arrivalNotice: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fefce8', padding: 12, borderRadius: 15, gap: 10, borderWidth: 1, borderColor: '#fef08a' },
     arrivalText: { fontSize: 12, fontWeight: '700', color: '#854d0e', flex: 1 },
     callActions: { flexDirection: 'row' },
