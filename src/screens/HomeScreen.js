@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Alert, StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useState, useRef, useCallback } from 'react';
+import { Alert, StyleSheet, Text, View, Image, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import MapViewDirections from 'react-native-maps-directions';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import BottomSheet from '@gorhom/bottom-sheet';
+import Animated, { FadeInDown, FadeInUp, Layout } from 'react-native-reanimated';
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 import { AppButton } from '@/components/AppButton';
 import { Screen } from '@/components/Screen';
@@ -13,12 +14,15 @@ import { VehicleSelector } from '@/components/VehicleSelector';
 import { env } from '@/config/env';
 import { useCurrentLocation } from '@/hooks/useCurrentLocation';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setDestination, setEstimate, setOrigin, setSelectedVehicle } from '@/store/slices/tripSlice';
+import { 
+    setDestination, setEstimate, setOrigin, setSelectedVehicle,
+    selectOrigin, selectDestination, selectEstimate, selectSelectedVehicle, selectEstimatedFare
+} from '@/store/slices/tripSlice';
 import { getRouteEstimate } from '@/services/googleMapsService';
 import { createTrip } from '@/services/tripService';
-import { calculateEstimatedFare } from '@/utils/fare';
 import { createNearbyDriverLocation } from '@/utils/driverSimulation';
 
+const { width } = Dimensions.get('window');
 const PICKUP_ICON = 'https://cdn-icons-png.flaticon.com/512/5835/5835955.png';
 const DESTINATION_ICON = 'https://cdn-icons-png.flaticon.com/512/5835/5835977.png';
 
@@ -26,443 +30,259 @@ export function HomeScreen() {
     const { t } = useTranslation();
     const navigation = useNavigation();
     const dispatch = useAppDispatch();
-    const { userId } = useAppSelector(state => state.auth);
-    const { origin, destination, estimate, selectedVehicle } = useAppSelector(state => state.trip);
-    const { location, error, requestLocation } = useCurrentLocation();
+    
+    const userId = useAppSelector(state => state.auth.userId);
+    const origin = useAppSelector(selectOrigin);
+    const destination = useAppSelector(selectDestination);
+    const estimate = useAppSelector(selectEstimate);
+    const selectedVehicle = useAppSelector(selectSelectedVehicle);
+    const baseFare = useAppSelector(selectEstimatedFare);
+
+    const { location, requestLocation } = useCurrentLocation();
     const [loading, setLoading] = useState(false);
     const [extraTip, setExtraTip] = useState(0);
 
-    const bottomSheetRef = useRef(null);
-    const snapPoints = useMemo(() => ['25%', '50%', '90%'], []);
+    const totalFare = useMemo(() => baseFare + extraTip, [baseFare, extraTip]);
 
-    useEffect(() => {
-        requestLocation();
-        // Force the panel to open on load
-        setTimeout(() => {
-            bottomSheetRef.current?.snapToIndex(0);
-        }, 1000);
-    }, [requestLocation]);
-
-    useEffect(() => {
-        if (location && !origin) {
-            dispatch(setOrigin(location));
-        }
-    }, [dispatch, location, origin]);
-
-    const fare = useMemo(() => {
-        if (!estimate) return 0;
-        const calculated = calculateEstimatedFare(estimate.distanceKm, estimate.durationMinutes, selectedVehicle);
-        return calculated + extraTip;
-    }, [estimate, selectedVehicle, extraTip]);
-
-    async function handleDestinationSelected(data, details) {
-        if (!details) return;
-        const loc = details.geometry.location;
-        const newDest = { 
-            latitude: loc.lat, 
-            longitude: loc.lng, 
-            address: data.description 
-        };
-        dispatch(setDestination(newDest));
-        
-        if (origin) {
-            await updateRoute(origin, newDest);
-        }
-    }
-
-    async function handleOriginSelected(data, details) {
-        if (!details) return;
-        const loc = details.geometry.location;
-        const newOrigin = { 
-            latitude: loc.lat, 
-            longitude: loc.lng, 
-            address: data.description 
-        };
-        dispatch(setOrigin(newOrigin));
-        
-        if (destination) {
-            await updateRoute(newOrigin, destination);
-        }
-    }
-
-    async function updateRoute(start, end) {
+    const updateRoute = useCallback(async (start, end) => {
         setLoading(true);
         try {
             const nextEstimate = await getRouteEstimate(start, end);
             dispatch(setEstimate(nextEstimate));
-            
-            // Force panel to snap to mid-point (index 1)
-            bottomSheetRef.current?.snapToIndex(1);
         } catch (err) {
-            console.error('Error calculating route:', err);
-            Alert.alert('Sorry', 'We could not fetch the price.');
+            console.error(err);
         } finally {
             setLoading(false);
         }
-    }
+    }, [dispatch]);
 
-    async function handleRequestRide() {
-        console.log('Initiating ride request...');
-        console.log('Current state:', { userId, hasOrigin: !!origin, hasDest: !!destination, hasEstimate: !!estimate });
-
-        if (!userId) {
-            Alert.alert('Session Error', 'User could not be verified. Please log out and log in again.');
-            return;
+    const handleLocationSelect = useCallback((type, data, details) => {
+        if (!details) return;
+        const loc = { latitude: details.geometry.location.lat, longitude: details.geometry.location.lng, address: data.description };
+        if (type === 'origin') {
+            dispatch(setOrigin(loc));
+            if (destination) updateRoute(loc, destination);
+        } else {
+            dispatch(setDestination(loc));
+            if (origin) updateRoute(origin, loc);
         }
+    }, [dispatch, origin, destination, updateRoute]);
 
-        if (!origin || !destination || !estimate) {
-            Alert.alert('Missing Data', 'Please select pickup and destination on the map.');
-            return;
-        }
-
+    const handleRequestRide = useCallback(async () => {
+        if (!userId || !origin || !destination || !estimate) return;
         try {
             setLoading(true);
-            const tripData = {
-                userId,
-                origin,
-                destination,
+            const tripId = await createTrip({
+                userId, origin, destination,
                 distanceKm: estimate.distanceKm,
                 durationMinutes: estimate.durationMinutes,
                 vehicleCategory: selectedVehicle,
-                estimatedFare: fare,
+                estimatedFare: totalFare,
                 tip: extraTip,
                 status: 'requested',
                 driverLocation: createNearbyDriverLocation(origin),
-                paymentStatus: 'pending',
-                currency: 'COP',
-            };
-
-            console.log('Sending to Firebase:', tripData);
-            const tripId = await createTrip(tripData);
-            console.log('Trip created with ID:', tripId);
-            
+            });
             navigation.navigate('TripTracking', { tripId });
         } catch (error) {
-            console.error('Error creating trip:', error);
-            Alert.alert('Error', 'We could not create your ride at this time: ' + (error.message || 'Unknown error'));
+            Alert.alert('Error', t('tripCreateError'));
         } finally {
             setLoading(false);
         }
-    }
+    }, [userId, origin, destination, estimate, selectedVehicle, totalFare, extraTip, navigation, t]);
+
+    const handleCustomTip = useCallback(() => {
+        Alert.prompt(
+            "Monto Personalizado",
+            "Ingresa el valor extra que deseas ofrecer al conductor",
+            [
+                { text: "Cancelar", style: "cancel" },
+                { 
+                    text: "Aplicar", 
+                    onPress: (value) => {
+                        const amount = parseInt(value);
+                        if (!isNaN(amount) && amount >= 0) {
+                            setExtraTip(amount);
+                        } else {
+                            Alert.alert("Error", "Ingresa un valor numérico válido");
+                        }
+                    }
+                }
+            ],
+            "plain-text",
+            extraTip > 0 ? extraTip.toString() : "",
+            "number-pad"
+        );
+    }, [extraTip]);
+
+    useEffect(() => { requestLocation(); }, [requestLocation]);
+
+    useEffect(() => {
+        if (location && !origin) dispatch(setOrigin(location));
+    }, [location, origin, dispatch]);
 
     return (
       <Screen scroll={false}>
         <View style={styles.container}>
-          <MapView 
-            provider={PROVIDER_GOOGLE} 
-            style={styles.map} 
-            initialRegion={{
-                latitude: origin?.latitude ?? 4.711,
-                longitude: origin?.longitude ?? -74.0721,
-                latitudeDelta: 0.05,
-                longitudeDelta: 0.05,
-            }}
-            region={origin ? {
-                latitude: origin.latitude,
-                longitude: origin.longitude,
-                latitudeDelta: 0.05,
-                longitudeDelta: 0.05,
-            } : undefined}
-            showsUserLocation
-          >
-            {origin && (
-              <Marker coordinate={origin} title={t('whereToPick')}>
-                <Image source={{ uri: PICKUP_ICON }} style={styles.markerIcon} />
-              </Marker>
-            )}
-            {destination && (
-              <Marker coordinate={destination} title={t('whereToGo')}>
-                <Image source={{ uri: DESTINATION_ICON }} style={styles.markerIcon} />
-              </Marker>
-            )}
-            {origin && destination && (
-              <MapViewDirections 
-                apikey={env.googleMapsApiKey} 
-                destination={destination} 
-                origin={origin} 
-                strokeColor="#111827" 
-                strokeWidth={5}
-              />
-            )}
-          </MapView>
-
-          <View style={styles.searchOverlay}>
+          <MapSection origin={origin} destination={destination} />
+          
+          <Animated.View entering={FadeInUp.delay(200)} style={styles.searchOverlay}>
             <View style={styles.inputCard}>
-               <AddressInput 
-                  label={t('whereToPick')}
-                  placeholder={t('currentLocPlaceholder')}
-                  value={origin?.address}
-                  iconColor="#10b981"
-                  onPress={handleOriginSelected}
-               />
+               <AddressInput label={t('whereToPick')} icon="radio-button-on" iconColor="#10b981" value={origin?.address} onSelect={(d, det) => handleLocationSelect('origin', d, det)} />
                <View style={styles.divider} />
-               <AddressInput 
-                  label={t('whereToGo')}
-                  placeholder={t('writeDestPlaceholder')}
-                  value={destination?.address}
-                  iconColor="#ef4444"
-                  onPress={handleDestinationSelected}
-               />
+               <AddressInput label={t('whereToGo')} icon="location" iconColor="#ef4444" value={destination?.address} onSelect={(d, det) => handleLocationSelect('destination', d, det)} />
             </View>
-          </View>
+          </Animated.View>
 
           <View style={styles.bottomCardContainer}>
-            <View style={styles.panelCard}>
-              {estimate ? (
-                <>
-                  <Text style={styles.panelTitle}>{t('rideOptions')}</Text>
-                  
-                  <VehicleSelector 
-                    value={selectedVehicle} 
-                    onChange={category => dispatch(setSelectedVehicle(category))}
-                  />
-
-                  <View style={styles.incentiveContainer}>
-                    <Text style={styles.incentiveTitle}>{t('incentiveTitle')}</Text>
-                    <View style={styles.tipOptions}>
-                      {[0, 2000, 5000, 10000].map((amount) => (
-                        <TouchableOpacity 
-                          key={amount} 
-                          style={[styles.tipButton, extraTip === amount && styles.tipButtonActive]}
-                          onPress={() => setExtraTip(amount)}
-                        >
-                          <Text style={[styles.tipText, extraTip === amount && styles.tipTextActive]}>
-                            {amount === 0 ? t('offerNormal') : `+$${amount/1000}k`}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-
-                  <View style={styles.footer}>
-                    <View style={styles.fareInfo}>
-                      <View>
-                        <Text style={styles.totalLabel}>{t('totalToPay')}</Text>
-                        <Text style={styles.subText}>{estimate.distanceKm} km • {estimate.durationMinutes} min</Text>
-                      </View>
-                      <Text style={styles.totalValue}>${fare.toLocaleString('es-CO')}</Text>
-                    </View>
-                    <AppButton 
-                      loading={loading} 
-                      onPress={handleRequestRide} 
-                      title={t('requestRideNow')}
-                      style={styles.mainButton}
-                    />
-                  </View>
-                </>
-              ) : (
-                <View style={styles.waitingContainer}>
-                   <Image 
-                      source={{ uri: 'https://cdn-icons-png.flaticon.com/512/8156/8156714.png' }} 
-                      style={styles.waitingIcon} 
-                   />
-                   <Text style={styles.waitingText}>
-                    {!destination 
-                      ? t('waitingDestination') 
-                      : t('calculatingFare')}
-                   </Text>
-                </View>
-              )}
-            </View>
+            <RidePanel 
+              estimate={estimate}
+              selectedVehicle={selectedVehicle}
+              totalFare={totalFare}
+              extraTip={extraTip}
+              loading={loading}
+              onVehicleChange={v => dispatch(setSelectedVehicle(v))}
+              onTipChange={setExtraTip}
+              onCustomTip={handleCustomTip}
+              onRequest={handleRequestRide}
+            />
           </View>
         </View>
       </Screen>
     );
 }
 
-function AddressInput({ label, placeholder, value, iconColor, onPress }) {
+function MapSection({ origin, destination }) {
+    return (
+        <MapView 
+            provider={PROVIDER_GOOGLE} 
+            style={styles.map} 
+            region={origin ? {
+                latitude: origin.latitude,
+                longitude: origin.longitude,
+                latitudeDelta: 0.05,
+                longitudeDelta: 0.05,
+            } : undefined}
+            customMapStyle={mapStyle}
+        >
+            {origin && <Marker coordinate={origin}><Image source={{ uri: PICKUP_ICON }} style={styles.markerIcon} /></Marker>}
+            {destination && <Marker coordinate={destination}><Image source={{ uri: DESTINATION_ICON }} style={styles.markerIcon} /></Marker>}
+            {origin && destination && (
+                <MapViewDirections 
+                    apikey={env.googleMapsApiKey} 
+                    destination={destination} 
+                    origin={origin} 
+                    strokeColor="#111827" 
+                    strokeWidth={4}
+                />
+            )}
+        </MapView>
+    );
+}
+
+function RidePanel({ estimate, selectedVehicle, totalFare, extraTip, loading, onVehicleChange, onTipChange, onCustomTip, onRequest }) {
+    const { t } = useTranslation();
+    const tipAmounts = [0, 2000, 5000, 10000];
+
+    if (!estimate) return (
+        <Animated.View entering={FadeInDown} style={styles.panelCard}>
+            <View style={styles.waitingContainer}>
+                <Text style={styles.waitingTitle}>{t('rideWithDidi')}</Text>
+                <Text style={styles.waitingSubtitle}>{t('selectDestToStart')}</Text>
+            </View>
+        </Animated.View>
+    );
+
+    return (
+        <Animated.View layout={Layout.springify()} entering={FadeInDown.duration(600)} style={styles.panelCard}>
+            <VehicleSelector value={selectedVehicle} onChange={onVehicleChange} />
+            <View style={styles.tipContainer}>
+                <View style={styles.tipHeader}>
+                    <Text style={styles.tipLabel}>Propina de incentivo</Text>
+                    <Text style={styles.tipIncentive}>Incentiva a los conductores para una respuesta más rápida</Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tipOptions}>
+                    {tipAmounts.map(amt => (
+                        <TouchableOpacity 
+                            key={amt} 
+                            style={[
+                                styles.tipBtn, 
+                                extraTip === amt && styles.tipBtnActive,
+                                amt >= 10000 && { borderColor: '#fbbf24' }
+                            ]} 
+                            onPress={() => onTipChange(amt)}
+                        >
+                            <Text style={[styles.tipText, extraTip === amt && styles.tipTextActive]}>
+                                {amt === 0 ? 'Estándar' : `+$${amt/1000}k`}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity 
+                        style={[styles.customTipBtn, extraTip > 10000 && styles.tipBtnActive]} 
+                        onPress={onCustomTip}
+                    >
+                        <Ionicons name="add-circle" size={18} color={extraTip > 10000 ? "white" : "#ff7d00"} />
+                        <Text style={[styles.customTipText, extraTip > 10000 && { color: 'white' }]}>
+                            {extraTip > 10000 ? `$${extraTip.toLocaleString()}` : 'Otro'}
+                        </Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            </View>
+            <View style={styles.footer}>
+                <View>
+                    <Text style={styles.totalFareLabel}>{t('totalPrice')}</Text>
+                    <Text style={styles.totalValue}>${totalFare.toLocaleString('es-CO')}</Text>
+                </View>
+                <AppButton loading={loading} onPress={onRequest} title={t('requestRideNow')} style={styles.requestButton} />
+            </View>
+        </Animated.View>
+    );
+}
+
+function AddressInput({ label, icon, iconColor, onSelect }) {
     return (
         <View style={styles.addressRow}>
-            <View style={[styles.dot, { backgroundColor: iconColor }]} />
-            <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>{label}</Text>
-                <GooglePlacesAutocomplete 
-                    debounce={300} 
-                    enablePoweredByContainer={false} 
-                    fetchDetails 
-                    placeholder={placeholder} 
-                    onPress={onPress}
-                    query={{ key: env.googleMapsApiKey, language: 'es', components: 'country:co' }} 
-                    styles={{
-                        textInput: styles.autocompleteInput,
-                        container: { flex: 0 },
-                        listView: styles.listView
-                    }}
-                />
-            </View>
+            <Ionicons name={icon} size={18} color={iconColor} style={{ marginRight: 10 }} />
+            <GooglePlacesAutocomplete 
+                debounce={300} fetchDetails placeholder={label} onPress={onSelect}
+                query={{ key: env.googleMapsApiKey, language: 'es' }} 
+                styles={{ textInput: styles.autocompleteInput, container: { flex: 1 }, listView: { zIndex: 100 } }}
+            />
         </View>
     );
 }
 
+const mapStyle = [
+    { "featureType": "administrative.land_parcel", "stylers": [{ "visibility": "off" }] },
+    { "featureType": "administrative.neighborhood", "stylers": [{ "visibility": "off" }] }
+];
+
 const styles = StyleSheet.create({
-    container: { flex: 1 },
+    container: { flex: 1, backgroundColor: '#f3f4f6' },
     map: { flex: 1 },
-    searchOverlay: {
-        position: 'absolute',
-        top: 50,
-        left: 15,
-        right: 15,
-        zIndex: 10,
-    },
-    inputCard: {
-        backgroundColor: 'white',
-        borderRadius: 20,
-        padding: 15,
-        elevation: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 10,
-    },
-    addressRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-    },
-    dot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-    },
-    inputLabel: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#6b7280',
-        marginBottom: -5,
-        marginLeft: 5,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#f3f4f6',
-        marginVertical: 10,
-        marginLeft: 25,
-    },
-    autocompleteInput: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#111827',
-        backgroundColor: 'transparent',
-        height: 45,
-    },
-    listView: {
-        backgroundColor: 'white',
-        borderRadius: 10,
-        marginTop: 5,
-    },
-    bottomCardContainer: {
-        position: 'absolute',
-        bottom: 110, // Elevamos la tarjeta para librar el menú flotante de 70px + 25px de margen
-        left: 15,
-        right: 15,
-        zIndex: 10,
-    },
-    panelCard: {
-        backgroundColor: 'white',
-        borderRadius: 25,
-        padding: 20,
-        elevation: 15,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -5 },
-        shadowOpacity: 0.2,
-        shadowRadius: 15,
-    },
-    panelTitle: {
-        fontSize: 18,
-        fontWeight: '900',
-        color: '#111827',
-        marginBottom: 10,
-        textAlign: 'center',
-    },
-    incentiveContainer: {
-        backgroundColor: '#fefce8',
-        borderRadius: 18,
-        padding: 12,
-        marginVertical: 12,
-        borderWidth: 1,
-        borderColor: '#fef08a',
-    },
-    incentiveTitle: {
-        fontSize: 14,
-        fontWeight: '800',
-        color: '#854d0e',
-        textAlign: 'center',
-        marginBottom: 8,
-    },
-    tipOptions: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        gap: 8,
-    },
-    tipButton: {
-        flex: 1,
-        backgroundColor: 'white',
-        paddingVertical: 8,
-        borderRadius: 12,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-    },
-    tipButtonActive: {
-        backgroundColor: '#111827',
-        borderColor: '#111827',
-    },
-    tipText: {
-        fontWeight: '700',
-        color: '#374151',
-        fontSize: 12,
-    },
-    tipTextActive: {
-        color: 'white',
-    },
-    footer: {
-        marginTop: 10,
-        gap: 12,
-    },
-    fareInfo: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 5,
-    },
-    totalLabel: {
-        fontSize: 14,
-        color: '#6b7280',
-        fontWeight: '600',
-    },
-    totalValue: {
-        fontSize: 26,
-        fontWeight: '900',
-        color: '#111827',
-    },
-    subText: {
-        fontSize: 12,
-        color: '#9ca3af',
-        fontWeight: '500',
-    },
-    waitingContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 10,
-    },
-    waitingIcon: {
-        width: 40,
-        height: 40,
-        marginBottom: 10,
-        opacity: 0.6,
-    },
-    waitingText: {
-        fontSize: 15,
-        color: '#6b7280',
-        fontWeight: '600',
-        textAlign: 'center',
-    },
-    mainButton: {
-        height: 55,
-        borderRadius: 15,
-    },
-    markerIcon: {
-        width: 45,
-        height: 45,
-        resizeMode: 'contain',
-    },
+    searchOverlay: { position: 'absolute', top: 60, left: 20, right: 20, zIndex: 10 },
+    inputCard: { backgroundColor: 'white', borderRadius: 24, padding: 15, elevation: 20, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20 },
+    addressRow: { flexDirection: 'row', alignItems: 'center' },
+    divider: { height: 1, backgroundColor: '#f3f4f6', marginVertical: 12, marginLeft: 28 },
+    autocompleteInput: { fontSize: 16, fontWeight: '700', color: '#111827', backgroundColor: 'transparent' },
+    bottomCardContainer: { position: 'absolute', bottom: 115, left: 15, right: 15, zIndex: 10 },
+    panelCard: { backgroundColor: 'white', borderRadius: 32, padding: 24, elevation: 25, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 30 },
+    waitingContainer: { alignItems: 'center', paddingVertical: 10 },
+    waitingTitle: { fontSize: 20, fontWeight: '900', color: '#111827', marginBottom: 5 },
+    waitingSubtitle: { fontSize: 14, color: '#6b7280', fontWeight: '600' },
+    tipContainer: { marginTop: 15 },
+    tipLabel: { fontSize: 13, fontWeight: '900', color: '#111827', textTransform: 'uppercase' },
+    tipIncentive: { fontSize: 11, color: '#6b7280', fontWeight: '600', marginTop: 1 },
+    tipHeader: { marginBottom: 12 },
+    tipOptions: { flexDirection: 'row', gap: 10, paddingRight: 20 },
+    tipBtn: { minWidth: 75, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 16, borderWidth: 2, borderColor: '#f3f4f6', alignItems: 'center', backgroundColor: '#fff' },
+    tipBtnActive: { backgroundColor: '#111827', borderColor: '#111827' },
+    tipText: { fontSize: 12, fontWeight: '800', color: '#374151' },
+    tipTextActive: { color: 'white' },
+    customTipBtn: { flexDirection: 'row', alignItems: 'center', minWidth: 90, paddingHorizontal: 12, borderRadius: 16, borderStyle: 'dashed', borderWidth: 2, borderColor: '#ff7d00', gap: 5, backgroundColor: '#fff7ed' },
+    customTipText: { fontSize: 12, fontWeight: '900', color: '#ff7d00' },
+    footer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
+    totalFareLabel: { fontSize: 12, fontWeight: '700', color: '#6b7280' },
+    totalValue: { fontSize: 28, fontWeight: '900', color: '#111827' },
+    requestButton: { width: width * 0.45, height: 55, borderRadius: 18 },
+    markerIcon: { width: 45, height: 45, resizeMode: 'contain' },
 });

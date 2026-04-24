@@ -68,16 +68,31 @@ export function TripDetailScreen({ route, navigation }) {
                 Alert.alert('Reasignando', `Solicitando a ${trip.driverName}. Nueva tarifa estimada: $${finalFare.toLocaleString('es-CO')}`);
             }
 
-            const newTripId = await createTrip({
-                ...trip,
-                id: undefined, // Let Firebase generate a new ID
-                status,
+            // Construir un objeto limpio para el nuevo viaje, evitando campos undefined o IDs antiguos
+            const newTripData = {
+                userId: trip.userId,
+                origin: trip.origin,
+                destination: trip.destination,
+                distanceKm: trip.distanceKm,
+                durationMinutes: trip.durationMinutes,
+                vehicleCategory: trip.vehicleCategory || 'economy',
                 estimatedFare: finalFare,
+                status,
                 createdAt: new Date(),
                 paymentStatus: 'pending',
                 driverLocation,
+                currency: trip.currency || 'COP',
                 ...extraInfo
+            };
+
+            // Eliminar cualquier propiedad que pueda ser undefined accidentalmente
+            Object.keys(newTripData).forEach(key => {
+                if (newTripData[key] === undefined) {
+                    delete newTripData[key];
+                }
             });
+
+            const newTripId = await createTrip(newTripData);
 
             navigation.navigate('TripTracking', { tripId: newTripId });
         } catch (error) {
@@ -236,9 +251,13 @@ const styles = StyleSheet.create({
     statValue: { fontSize: 16, fontWeight: '800', color: '#111827' },
     priceValue: { color: '#111827', fontSize: 18 },
     driverInfo: { flexDirection: 'row', alignItems: 'center', gap: 15 },
-    driverPhoto: { width: 50, height: 50, borderRadius: 25 },
+    driverPhoto: { width: 55, height: 55, borderRadius: 27 },
     driverName: { fontSize: 18, fontWeight: '900', color: '#111827' },
-    vehicleText: { fontSize: 14, color: '#6b7280', fontWeight: '500' },
+    vehicleText: { fontSize: 13, color: '#6b7280', fontWeight: '600' },
+    ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+    ratingText: { fontSize: 12, fontWeight: '800', color: '#374151' },
+    contactIconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
+    cardHeaderSmall: { marginBottom: 12 },
     actionsContainer: { paddingHorizontal: 20, gap: 15 },
     secondaryActions: { flexDirection: 'row', gap: 15 },
     actionButton: { flex: 1, backgroundColor: 'white', padding: 15, borderRadius: 20, alignItems: 'center', gap: 8, elevation: 2 },
