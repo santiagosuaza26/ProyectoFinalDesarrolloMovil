@@ -78,13 +78,16 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.uberclonenative"
+    namespace "com.didiclone"
     defaultConfig {
-        applicationId "com.uberclonenative"
+        applicationId "com.didiclone"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        testBuildType System.getProperty('testBuildType', 'debug')
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        missingDimensionStrategy 'detox', 'full'
     }
     signingConfigs {
         debug {
@@ -111,6 +114,12 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    implementation platform("com.google.firebase:firebase-bom:34.12.0")
+    androidTestImplementation(files("../../node_modules/detox/Detox-android/com/wix/detox/20.51.0/detox-20.51.0.aar"))
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

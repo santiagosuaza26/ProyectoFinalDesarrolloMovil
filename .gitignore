@@ -14,6 +14,7 @@ yarn-error.log*
 # Build outputs
 coverage/
 dist/
+.tmp-js/
 
 # Android
 android/.gradle/

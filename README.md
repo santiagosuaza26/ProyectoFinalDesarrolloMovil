@@ -4,7 +4,7 @@ React Native CLI MVP for an academic Didi-style ride-hailing mobile app. The app
 
 ## Tech Stack
 
-- React Native CLI with TypeScript
+- React Native CLI with JavaScript
 - Redux Toolkit
 - React Navigation
 - Firebase Auth, Cloud Firestore, and Storage
@@ -133,10 +133,33 @@ Recommended branches:
 ## Quality Checks
 
 ```bash
-npm run typecheck
 npm run lint
 npm test
 ```
+
+## E2E Testing (Detox)
+
+This project includes Detox-based Android E2E tests (the equivalent of Cypress for React Native apps).
+
+List available Android emulators:
+
+```bash
+npm run e2e:android:avds
+```
+
+Build the app for E2E:
+
+```bash
+npm run test:e2e:build:android
+```
+
+Run E2E tests:
+
+```bash
+npm run test:e2e:android
+```
+
+Note: the E2E helper script auto-detects Android SDK and injects emulator/platform-tools into PATH, so it works even if `emulator` is not globally available in your terminal.
 
 ## MVP Notes
 

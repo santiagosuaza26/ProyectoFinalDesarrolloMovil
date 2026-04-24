@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "didiclone-demo",
-    "storage_bucket": "didiclone-demo.appspot.com"
+    "project_number": "978263725122",
+    "project_id": "pirata-fb387",
+    "storage_bucket": "pirata-fb387.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:978263725122:android:5b054f927b7e887d7dc9db",
         "android_client_info": {
-          "package_name": "com.uberclonenative"
+          "package_name": "com.didiclone"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "replace_with_firebase_web_api_key"
+          "current_key": "AIzaSyCdQr988I_xhNVRgiMt1POH7avyAo_q7J0"
         }
       ],
       "services": {

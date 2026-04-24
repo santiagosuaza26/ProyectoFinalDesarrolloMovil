@@ -10,12 +10,21 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        maven { url uri("../node_modules/detox/Detox-android") }
     }
     dependencies {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
-        classpath("com.google.gms:google-services:4.4.2")
+        classpath("com.google.gms:google-services:4.4.4")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url uri("../node_modules/detox/Detox-android") }
     }
 }
 
