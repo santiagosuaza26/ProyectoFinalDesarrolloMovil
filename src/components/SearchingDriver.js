@@ -23,7 +23,7 @@ export function SearchingDriver() {
         ring1.value = withRepeat(withTiming(1, { duration: 2000, easing: Easing.out(Easing.ease) }), -1);
         ring2.value = withDelay(500, withRepeat(withTiming(1, { duration: 2000, easing: Easing.out(Easing.ease) }), -1));
         ring3.value = withDelay(1000, withRepeat(withTiming(1, { duration: 2000, easing: Easing.out(Easing.ease) }), -1));
-    }, []);
+    }, [ring1, ring2, ring3]);
 
     const ring1Style = useAnimatedStyle(() => ({
         transform: [{ scale: interpolate(ring1.value, [0, 1], [0.5, 2.5]) }],
