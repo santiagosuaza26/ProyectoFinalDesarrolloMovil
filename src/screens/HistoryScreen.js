@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     },
     list: {
         padding: 16,
-        paddingBottom: 120, // Espacio suficiente para el menú flotante
+        paddingBottom: 120, 
         gap: 16,
     },
     card: {

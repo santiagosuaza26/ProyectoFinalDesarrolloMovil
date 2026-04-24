@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffffff',
     },
     scrollContent: {
-        paddingBottom: 40,
+        paddingBottom: 120, // Aumentamos el padding para librar el menú flotante
     },
     header: {
         paddingTop: 60,

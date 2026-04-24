@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     },
     bottomCardContainer: {
         position: 'absolute',
-        bottom: 110, // Subimos la tarjeta para que el menú flotante no la tape
+        bottom: 110, // Elevamos la tarjeta para librar el menú flotante de 70px + 25px de margen
         left: 15,
         right: 15,
         zIndex: 10,

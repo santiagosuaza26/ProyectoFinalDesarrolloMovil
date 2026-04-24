@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     },
     bottomCardContainer: {
         position: 'absolute',
-        bottom: 110, // Arriba del menú flotante
+        bottom: 110, 
         left: 15,
         right: 15,
         zIndex: 10,
