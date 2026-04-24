@@ -58,6 +58,14 @@ function TripCard({ trip, onPress }) {
             </View>
             <Text style={styles.addressText} numberOfLines={1}>● {trip.origin.address}</Text>
             <Text style={styles.addressText} numberOfLines={1}>📍 {trip.destination.address}</Text>
+            
+            {trip.driverName && (
+                <View style={styles.driverBadge}>
+                    <Image source={{ uri: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' }} style={styles.driverBadgePhoto} />
+                    <Text style={styles.driverBadgeText}>{trip.driverName}</Text>
+                </View>
+            )}
+
             <View style={styles.cardFooter}>
                 <Text style={styles.statsText}>{trip.distanceKm} km • {trip.durationMinutes} min</Text>
                 <Text style={styles.priceText}>${(trip.finalFare || trip.estimatedFare).toLocaleString()}</Text>
@@ -88,7 +96,10 @@ const styles = StyleSheet.create({
     statusTextCancelled: { color: '#b91c1c' },
     dateText: { fontSize: 11, color: '#6b7280' },
     addressText: { fontSize: 13, fontWeight: '600', marginBottom: 5 },
-    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingTop: 10, marginTop: 5 },
+    driverBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f9fafb', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, marginTop: 8, alignSelf: 'flex-start' },
+    driverBadgePhoto: { width: 24, height: 24, borderRadius: 12, marginRight: 8 },
+    driverBadgeText: { fontSize: 12, fontWeight: '700', color: '#374151' },
+    cardFooter: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: '#f3f4f6', paddingTop: 10, marginTop: 10 },
     statsText: { fontSize: 12, color: '#6b7280' },
     priceText: { fontSize: 16, fontWeight: '900' },
     emptyContainer: { alignItems: 'center', marginTop: 50 },
