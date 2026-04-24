@@ -102,13 +102,22 @@ export function HomeScreen() {
     }
 
     async function handleRequestRide() {
-        if (!userId || !origin || !destination || !estimate) {
-            Alert.alert('Atención', 'Por favor selecciona el punto de recogida y el destino.');
+        console.log('Iniciando solicitud de viaje...');
+        console.log('Estado actual:', { userId, hasOrigin: !!origin, hasDest: !!destination, hasEstimate: !!estimate });
+
+        if (!userId) {
+            Alert.alert('Error de sesión', 'No pudimos verificar tu usuario. Intenta cerrar sesión y volver a entrar.');
             return;
         }
+
+        if (!origin || !destination || !estimate) {
+            Alert.alert('Faltan datos', 'Por favor selecciona el punto de recogida y el destino en el mapa.');
+            return;
+        }
+
         try {
             setLoading(true);
-            const tripId = await createTrip({
+            const tripData = {
                 userId,
                 origin,
                 destination,
@@ -121,8 +130,16 @@ export function HomeScreen() {
                 driverLocation: createNearbyDriverLocation(origin),
                 paymentStatus: 'pending',
                 currency: 'COP',
-            });
+            };
+
+            console.log('Enviando a Firebase:', tripData);
+            const tripId = await createTrip(tripData);
+            console.log('Viaje creado con ID:', tripId);
+            
             navigation.navigate('TripTracking', { tripId });
+        } catch (error) {
+            console.error('Error al crear el viaje:', error);
+            Alert.alert('Error', 'No pudimos crear tu viaje en este momento: ' + (error.message || 'Error desconocido'));
         } finally {
             setLoading(false);
         }
@@ -149,12 +166,12 @@ export function HomeScreen() {
             showsUserLocation
           >
             {origin && (
-              <Marker coordinate={origin} title="¿Donde te recogen?">
+              <Marker coordinate={origin} title={t('whereToPick')}>
                 <Image source={{ uri: PICKUP_ICON }} style={styles.markerIcon} />
               </Marker>
             )}
             {destination && (
-              <Marker coordinate={destination} title="¿A donde vas?">
+              <Marker coordinate={destination} title={t('whereToGo')}>
                 <Image source={{ uri: DESTINATION_ICON }} style={styles.markerIcon} />
               </Marker>
             )}
@@ -172,16 +189,16 @@ export function HomeScreen() {
           <View style={styles.searchOverlay}>
             <View style={styles.inputCard}>
                <AddressInput 
-                  label="¿Dónde te recogen?"
-                  placeholder="Tu ubicación actual"
+                  label={t('whereToPick')}
+                  placeholder={t('currentLocPlaceholder')}
                   value={origin?.address}
                   iconColor="#10b981"
                   onPress={handleOriginSelected}
                />
                <View style={styles.divider} />
                <AddressInput 
-                  label="¿A dónde vas?"
-                  placeholder="Escribe tu destino"
+                  label={t('whereToGo')}
+                  placeholder={t('writeDestPlaceholder')}
                   value={destination?.address}
                   iconColor="#ef4444"
                   onPress={handleDestinationSelected}
@@ -193,7 +210,7 @@ export function HomeScreen() {
             <View style={styles.panelCard}>
               {estimate ? (
                 <>
-                  <Text style={styles.panelTitle}>Opciones de viaje</Text>
+                  <Text style={styles.panelTitle}>{t('rideOptions')}</Text>
                   
                   <VehicleSelector 
                     value={selectedVehicle} 
@@ -201,7 +218,7 @@ export function HomeScreen() {
                   />
 
                   <View style={styles.incentiveContainer}>
-                    <Text style={styles.incentiveTitle}>¿Quieres que te recojan más rápido?</Text>
+                    <Text style={styles.incentiveTitle}>{t('incentiveTitle')}</Text>
                     <View style={styles.tipOptions}>
                       {[0, 2000, 5000, 10000].map((amount) => (
                         <TouchableOpacity 
@@ -210,7 +227,7 @@ export function HomeScreen() {
                           onPress={() => setExtraTip(amount)}
                         >
                           <Text style={[styles.tipText, extraTip === amount && styles.tipTextActive]}>
-                            {amount === 0 ? 'Normal' : `+$${amount/1000}k`}
+                            {amount === 0 ? t('offerNormal') : `+$${amount/1000}k`}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -220,7 +237,7 @@ export function HomeScreen() {
                   <View style={styles.footer}>
                     <View style={styles.fareInfo}>
                       <View>
-                        <Text style={styles.totalLabel}>Total a pagar</Text>
+                        <Text style={styles.totalLabel}>{t('totalToPay')}</Text>
                         <Text style={styles.subText}>{estimate.distanceKm} km • {estimate.durationMinutes} min</Text>
                       </View>
                       <Text style={styles.totalValue}>${fare.toLocaleString('es-CO')}</Text>
@@ -228,7 +245,7 @@ export function HomeScreen() {
                     <AppButton 
                       loading={loading} 
                       onPress={handleRequestRide} 
-                      title="Pedir viaje ahora"
+                      title={t('requestRideNow')}
                       style={styles.mainButton}
                     />
                   </View>
@@ -241,8 +258,8 @@ export function HomeScreen() {
                    />
                    <Text style={styles.waitingText}>
                     {!destination 
-                      ? "🚩 Selecciona un destino para ver el precio" 
-                      : "⌛ Calculando la mejor tarifa..."}
+                      ? t('waitingDestination') 
+                      : t('calculatingFare')}
                    </Text>
                 </View>
               )}
@@ -334,7 +351,7 @@ const styles = StyleSheet.create({
     },
     bottomCardContainer: {
         position: 'absolute',
-        bottom: 20,
+        bottom: 110, // Subimos la tarjeta para que el menú flotante no la tape
         left: 15,
         right: 15,
         zIndex: 10,

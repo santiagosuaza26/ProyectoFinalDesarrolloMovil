@@ -4,9 +4,17 @@ export function createNearbyDriverLocation(origin) {
         longitude: origin.longitude - 0.012,
     };
 }
-export function moveTowardsTarget(current, target, progress = 0.25) {
+export function moveTowardsTarget(current, target, speed = 0.0005) {
+    const dLat = target.latitude - current.latitude;
+    const dLng = target.longitude - current.longitude;
+    const distance = Math.sqrt(dLat * dLat + dLng * dLng);
+
+    if (distance < speed) {
+        return target;
+    }
+
     return {
-        latitude: current.latitude + (target.latitude - current.latitude) * progress,
-        longitude: current.longitude + (target.longitude - current.longitude) * progress,
+        latitude: current.latitude + (dLat / distance) * speed,
+        longitude: current.longitude + (dLng / distance) * speed,
     };
 }

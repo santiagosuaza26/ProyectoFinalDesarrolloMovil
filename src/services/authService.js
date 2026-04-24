@@ -79,7 +79,7 @@ async function signInLocal(email, password) {
     return { user: { uid: user.userId } };
 }
 
-async function useFallbackAuth(email, password, mode) {
+async function performFallbackAuth(email, password, mode) {
     setLocalAuthMode();
     if (mode === 'sign-in') {
         return signInLocal(email, password);
@@ -98,7 +98,7 @@ export async function signIn(email, password) {
     }
     catch (error) {
         if (isFirebaseApiKeyError(error)) {
-            const credential = await useFallbackAuth(email, password, 'sign-in');
+            const credential = await performFallbackAuth(email, password, 'sign-in');
             return credential.user;
         }
         throw error;
@@ -115,7 +115,7 @@ export async function signUp(email, password) {
     }
     catch (error) {
         if (isFirebaseApiKeyError(error)) {
-            const credential = await useFallbackAuth(email, password, 'sign-up');
+            const credential = await performFallbackAuth(email, password, 'sign-up');
             return credential.user;
         }
         throw error;
