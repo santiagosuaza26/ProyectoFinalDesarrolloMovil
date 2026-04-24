@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+coverage/
+dist/
+
+# Android
+android/.gradle/
+android/local.properties
+android/**/build/
+android/**/.cxx/
+*.apk
+*.aab
+*.ap_
+*.keystore
+*.jks
+
+# iOS
+ios/Pods/
+ios/build/
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcuserstate
+
+# Metro / React Native cache
+.metro-health-check*
+
+# Editor / OS files
+.DS_Store
+Thumbs.db
