@@ -77,9 +77,17 @@ export function listenToUserProfile(userId, callback) {
     }
     return users()
         .doc(userId)
-        .onSnapshot(snapshot => {
-        callback(snapshot.exists
-            ? { id: snapshot.id, ...snapshot.data() }
-            : undefined);
-    });
+        .onSnapshot(
+          (snapshot) => {
+            if (!snapshot) {return;}
+            callback(
+              snapshot.exists
+                ? { id: snapshot.id, ...snapshot.data() }
+                : undefined
+            );
+          },
+          (error) => {
+            console.error('Error listening to profile:', error);
+          }
+        );
 }

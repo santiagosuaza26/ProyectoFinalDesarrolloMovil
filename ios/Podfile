@@ -17,6 +17,10 @@ end
 target 'didiclone' do
   config = use_native_modules!
 
+  # React Native Maps dependencies
+  rn_maps_path = '../node_modules/react-native-maps'
+  pod 'react-native-google-maps', :path => rn_maps_path
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.

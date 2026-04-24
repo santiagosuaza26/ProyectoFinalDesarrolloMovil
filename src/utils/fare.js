@@ -1,13 +1,15 @@
-const fareConfig = {
-    economy: { baseFare: 2.5, perKm: 0.9, perMinute: 0.18, multiplier: 1 },
-    xl: { baseFare: 4, perKm: 1.25, perMinute: 0.24, multiplier: 1.35 },
-    premium: { baseFare: 6, perKm: 1.8, perMinute: 0.35, multiplier: 1.8 },
+const RATE_PER_KM = 2000;
+const MINIMUM_FARE = 5000;
+
+const VEHICLE_MULTIPLIERS = {
+    economy: 1,
+    xl: 1.5,
+    premium: 2,
 };
-export function calculateEstimatedFare(distanceKm, durationMinutes, vehicleCategory) {
-    const config = fareConfig[vehicleCategory];
-    const rawFare = (config.baseFare +
-        distanceKm * config.perKm +
-        durationMinutes * config.perMinute) *
-        config.multiplier;
-    return Number(rawFare.toFixed(2));
+
+export function calculateEstimatedFare(distanceKm, durationMinutes, vehicleCategory = 'economy') {
+    const multiplier = VEHICLE_MULTIPLIERS[vehicleCategory] || 1;
+    const baseFare = distanceKm * RATE_PER_KM * multiplier;
+    
+    return Math.max(Math.round(baseFare / 100) * 100, MINIMUM_FARE);
 }

@@ -1,4 +1,4 @@
-import { validateEmail, validatePhoneNumber, validateProfileForm, } from '@/utils/validation';
+import { validateEmail, validatePhoneNumber, validateProfileForm } from '@/utils/validation';
 describe('profile validation', () => {
     it('rejects empty required fields', () => {
         const result = validateProfileForm({

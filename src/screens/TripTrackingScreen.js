@@ -1,21 +1,69 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { Alert, StyleSheet, Text, View, Image } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useStripe } from '@stripe/stripe-react-native';
 import { useTranslation } from 'react-i18next';
+import BottomSheet from '@gorhom/bottom-sheet';
+import LottieView from 'lottie-react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+
 import { AppButton } from '@/components/AppButton';
 import { Screen } from '@/components/Screen';
 import { listenToTrip, updateDriverLocation, updateTripPayment, updateTripStatus } from '@/services/tripService';
 import { createPaymentIntent } from '@/services/paymentService';
 import { moveTowardsTarget } from '@/utils/driverSimulation';
+
+const AnimatedMarker = Animated.createAnimatedComponent(Marker);
+
+const PICKUP_ICON = 'https://cdn-icons-png.flaticon.com/512/5835/5835955.png';
+const DESTINATION_ICON = 'https://cdn-icons-png.flaticon.com/512/5835/5835977.png';
+const CAR_ICON = 'https://cdn-icons-png.flaticon.com/512/3448/3448339.png';
+const SEARCHING_LOTTIE = 'https://assets9.lottiefiles.com/packages/lf20_7zS7vS.json';
+
 export function TripTrackingScreen({ route, navigation }) {
     const { t } = useTranslation();
     const { initPaymentSheet, presentPaymentSheet } = useStripe();
     const [trip, setTrip] = useState();
     const [loading, setLoading] = useState(false);
+
+    // Bottom Sheet setup
+    const bottomSheetRef = useRef(null);
+    const snapPoints = useMemo(() => ['25%', '50%'], []);
+
+    // Reanimated values for smooth car movement
+    const carLat = useSharedValue(0);
+    const carLng = useSharedValue(0);
+
+    const carAnimatedProps = useAnimatedProps(() => {
+        return {
+            coordinate: {
+                latitude: carLat.value,
+                longitude: carLng.value,
+            },
+        };
+    });
+
     useEffect(() => {
-        return listenToTrip(route.params.tripId, setTrip);
-    }, [route.params.tripId]);
+        return listenToTrip(route.params.tripId, (updatedTrip) => {
+            setTrip(updatedTrip);
+            if (updatedTrip?.driverLocation) {
+                carLat.value = withTiming(updatedTrip.driverLocation.latitude, {
+                    duration: 4500,
+                    easing: Easing.linear,
+                });
+                carLng.value = withTiming(updatedTrip.driverLocation.longitude, {
+                    duration: 4500,
+                    easing: Easing.linear,
+                });
+            }
+        });
+    }, [route.params.tripId, carLat, carLng]);
+
     useEffect(() => {
         if (!trip || trip.status === 'completed' || trip.status === 'cancelled') {
             return undefined;
@@ -33,12 +81,14 @@ export function TripTrackingScreen({ route, navigation }) {
         }, 5000);
         return () => clearInterval(timer);
     }, [trip]);
+
     async function handleCompleteRide() {
         if (!trip) {
             return;
         }
         await updateTripStatus(trip.id, 'completed', { finalFare: trip.estimatedFare });
     }
+
     async function handlePay() {
         if (!trip) {
             return;
@@ -69,36 +119,87 @@ export function TripTrackingScreen({ route, navigation }) {
             setLoading(false);
         }
     }
+
     if (!trip) {
         return (<Screen>
         <Text>Loading...</Text>
       </Screen>);
     }
+
     return (<Screen scroll={false}>
       <View style={styles.container}>
-        <MapView provider={PROVIDER_GOOGLE} style={styles.map} initialRegion={{
+        <MapView
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          initialRegion={{
             latitude: trip.origin.latitude,
             longitude: trip.origin.longitude,
             latitudeDelta: 0.05,
             longitudeDelta: 0.05,
-        }}>
-          <Marker coordinate={trip.origin} title="Pickup"/>
-          <Marker coordinate={trip.destination} title="Destination"/>
-          {trip.driverLocation ? (<Marker coordinate={trip.driverLocation} title="Driver"/>) : null}
+          }}
+        >
+          <Marker coordinate={trip.origin} title="Pickup">
+            <Image source={{ uri: PICKUP_ICON }} style={styles.markerIcon} />
+          </Marker>
+          <Marker coordinate={trip.destination} title="Destination">
+            <Image source={{ uri: DESTINATION_ICON }} style={styles.markerIcon} />
+          </Marker>
+          {trip.driverLocation ? (
+            <AnimatedMarker animatedProps={carAnimatedProps} title="Driver">
+               <Image source={{ uri: CAR_ICON }} style={styles.carIcon} />
+            </AnimatedMarker>
+          ) : null}
         </MapView>
-        <View style={styles.panel}>
-          <Text style={styles.title}>
-            {t('status')}: {trip.status}
-          </Text>
-          <Text style={styles.text}>
-            {t('estimatedFare')}: ${trip.estimatedFare.toFixed(2)}
-          </Text>
-          {trip.status !== 'completed' ? (<AppButton onPress={handleCompleteRide} title={t('completeRide')}/>) : (<AppButton disabled={trip.paymentStatus === 'paid'} loading={loading} onPress={handlePay} title={t('payWithStripe')}/>)}
-          <AppButton onPress={() => updateTripStatus(trip.id, 'cancelled')} title={t('cancelRide')} variant="danger"/>
-        </View>
+
+        <BottomSheet
+          ref={bottomSheetRef}
+          index={0}
+          snapPoints={snapPoints}
+          backgroundStyle={styles.bottomSheetBackground}
+        >
+          <View style={styles.panel}>
+            <View style={styles.statusContainer}>
+              <View style={styles.statusTextContainer}>
+                <Text style={styles.title}>
+                  {t('status')}: {t(trip.status)}
+                </Text>
+                <Text style={styles.text}>
+                  {t('estimatedFare')}: ${trip.estimatedFare.toFixed(2)}
+                </Text>
+              </View>
+              {trip.status !== 'completed' && (
+                <LottieView
+                  source={{ uri: SEARCHING_LOTTIE }}
+                  autoPlay
+                  loop
+                  style={styles.lottie}
+                />
+              )}
+            </View>
+
+            <View style={styles.actions}>
+              {trip.status !== 'completed' ? (
+                <AppButton onPress={handleCompleteRide} title={t('completeRide')}/>
+              ) : (
+                <AppButton
+                  disabled={trip.paymentStatus === 'paid'}
+                  loading={loading}
+                  onPress={handlePay}
+                  title={t('payWithStripe')}
+                />
+              )}
+              <AppButton
+                onPress={() => updateTripStatus(trip.id, 'cancelled')}
+                title={t('cancelRide')}
+                variant="danger"
+              />
+            </View>
+          </View>
+        </BottomSheet>
       </View>
     </Screen>);
 }
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -106,18 +207,54 @@ const styles = StyleSheet.create({
     map: {
         flex: 1,
     },
+    bottomSheetBackground: {
+        borderRadius: 24,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+    },
     panel: {
-        backgroundColor: '#ffffff',
+        flex: 1,
+        padding: 20,
+        gap: 20,
+    },
+    statusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    statusTextContainer: {
+        flex: 1,
+    },
+    lottie: {
+        width: 80,
+        height: 80,
+    },
+    actions: {
         gap: 12,
-        padding: 16,
     },
     text: {
-        color: '#374151',
-        fontWeight: '700',
+        color: '#6b7280',
+        fontSize: 16,
+        fontWeight: '500',
+        marginTop: 4,
     },
     title: {
         color: '#111827',
-        fontSize: 18,
+        fontSize: 22,
         fontWeight: '900',
+        textTransform: 'capitalize',
+    },
+    markerIcon: {
+        width: 40,
+        height: 40,
+        resizeMode: 'contain',
+    },
+    carIcon: {
+        width: 45,
+        height: 45,
+        resizeMode: 'contain',
     },
 });

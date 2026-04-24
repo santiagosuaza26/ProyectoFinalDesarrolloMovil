@@ -1,6 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, } from 'react-native';
-export function AppButton({ title, onPress, disabled, loading, variant = 'primary', style, testID, }) {
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+export function AppButton({ title, onPress, disabled, loading, variant = 'primary', style, testID }) {
     return (<Pressable accessibilityRole="button" disabled={disabled || loading} onPress={onPress} testID={testID} style={({ pressed }) => [
             styles.button,
             styles[variant],

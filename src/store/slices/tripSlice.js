@@ -29,5 +29,5 @@ const tripSlice = createSlice({
         },
     },
 });
-export const { setOrigin, setDestination, setEstimate, setSelectedVehicle, setActiveTrip, resetTripRequest, } = tripSlice.actions;
+export const { setOrigin, setDestination, setEstimate, setSelectedVehicle, setActiveTrip, resetTripRequest } = tripSlice.actions;
 export default tripSlice.reducer;

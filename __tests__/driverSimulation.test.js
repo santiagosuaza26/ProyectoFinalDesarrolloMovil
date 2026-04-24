@@ -1,4 +1,4 @@
-import { createNearbyDriverLocation, moveTowardsTarget, } from '@/utils/driverSimulation';
+import { createNearbyDriverLocation, moveTowardsTarget } from '@/utils/driverSimulation';
 describe('driver simulation', () => {
     it('creates a nearby driver location', () => {
         const origin = { latitude: 4.711, longitude: -74.0721 };
