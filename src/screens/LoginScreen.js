@@ -73,13 +73,6 @@ export function LoginScreen({ navigation }) {
               style={styles.loginButton}
             />
           </View>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>{t('dontHaveAccount')}</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-              <Text style={styles.registerLink}>{t('createAccount')}</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
       </Screen>
     );

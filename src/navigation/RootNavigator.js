@@ -4,7 +4,6 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { AppTabs } from './AppTabs';
-import { AuthNavigator } from './AuthNavigator';
 import { TripDetailScreen } from '@/screens/TripDetailScreen';
 import { TripTrackingScreen } from '@/screens/TripTrackingScreen';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -41,12 +40,10 @@ export function RootNavigator() {
       </View>);
     }
     return (<NavigationContainer>
-      <Stack.Navigator>
-        {userId ? (<>
-            <Stack.Screen name="MainTabs" component={AppTabs} options={{ headerShown: false }}/>
-            <Stack.Screen name="TripTracking" component={TripTrackingScreen} options={{ title: t('status') }}/>
-            <Stack.Screen name="TripDetail" component={TripDetailScreen} options={{ title: t('tripDetail') }}/>
-          </>) : (<Stack.Screen name="Auth" component={AuthNavigator} options={{ headerShown: false }}/>)}
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="MainTabs" component={AppTabs}/>
+        <Stack.Screen name="TripTracking" component={TripTrackingScreen} options={{ headerShown: true, title: t('status') }}/>
+        <Stack.Screen name="TripDetail" component={TripDetailScreen} options={{ headerShown: true, title: t('tripDetail') }}/>
       </Stack.Navigator>
     </NavigationContainer>);
 }

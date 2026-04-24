@@ -20,8 +20,7 @@ export function HistoryScreen() {
         return listenToUserTrips(userId, setTrips);
     }, [userId]);
 
-    const renderTripItem = ({ item }) => {
-        const isCompleted = item.status === 'completed';
+    const renderTripItem = React.useCallback(({ item }) => {
         const isCancelled = item.status === 'cancelled';
         
         return (
@@ -65,7 +64,7 @@ export function HistoryScreen() {
             </View>
           </Pressable>
         );
-    };
+    }, [navigation, t]);
 
     return (
       <Screen scroll={false} style={styles.screen}>
@@ -75,7 +74,11 @@ export function HistoryScreen() {
         <FlatList 
           contentContainerStyle={styles.list} 
           data={trips} 
-          keyExtractor={item => item.id} 
+          keyExtractor={item => item.id}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={true}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Image 

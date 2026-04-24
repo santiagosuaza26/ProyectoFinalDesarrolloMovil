@@ -4,7 +4,9 @@ export function createNearbyDriverLocation(origin) {
         longitude: origin.longitude - 0.012,
     };
 }
+
 export function moveTowardsTarget(current, target, speed = 0.0005) {
+    // Constant speed for smoothness
     const dLat = target.latitude - current.latitude;
     const dLng = target.longitude - current.longitude;
     const distance = Math.sqrt(dLat * dLat + dLng * dLng);

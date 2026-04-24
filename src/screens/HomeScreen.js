@@ -37,7 +37,7 @@ export function HomeScreen() {
 
     useEffect(() => {
         requestLocation();
-        // Forzamos la apertura del panel al cargar
+        // Force the panel to open on load
         setTimeout(() => {
             bottomSheetRef.current?.snapToIndex(0);
         }, 1000);
@@ -91,27 +91,27 @@ export function HomeScreen() {
             const nextEstimate = await getRouteEstimate(start, end);
             dispatch(setEstimate(nextEstimate));
             
-            // Forzamos a que suba al punto medio (450px)
+            // Force panel to snap to mid-point (index 1)
             bottomSheetRef.current?.snapToIndex(1);
         } catch (err) {
-            console.error('Error calculando ruta:', err);
-            Alert.alert('Lo sentimos', 'No pudimos obtener el precio.');
+            console.error('Error calculating route:', err);
+            Alert.alert('Sorry', 'We could not fetch the price.');
         } finally {
             setLoading(false);
         }
     }
 
     async function handleRequestRide() {
-        console.log('Iniciando solicitud de viaje...');
-        console.log('Estado actual:', { userId, hasOrigin: !!origin, hasDest: !!destination, hasEstimate: !!estimate });
+        console.log('Initiating ride request...');
+        console.log('Current state:', { userId, hasOrigin: !!origin, hasDest: !!destination, hasEstimate: !!estimate });
 
         if (!userId) {
-            Alert.alert('Error de sesión', 'No pudimos verificar tu usuario. Intenta cerrar sesión y volver a entrar.');
+            Alert.alert('Session Error', 'User could not be verified. Please log out and log in again.');
             return;
         }
 
         if (!origin || !destination || !estimate) {
-            Alert.alert('Faltan datos', 'Por favor selecciona el punto de recogida y el destino en el mapa.');
+            Alert.alert('Missing Data', 'Please select pickup and destination on the map.');
             return;
         }
 
@@ -132,14 +132,14 @@ export function HomeScreen() {
                 currency: 'COP',
             };
 
-            console.log('Enviando a Firebase:', tripData);
+            console.log('Sending to Firebase:', tripData);
             const tripId = await createTrip(tripData);
-            console.log('Viaje creado con ID:', tripId);
+            console.log('Trip created with ID:', tripId);
             
             navigation.navigate('TripTracking', { tripId });
         } catch (error) {
-            console.error('Error al crear el viaje:', error);
-            Alert.alert('Error', 'No pudimos crear tu viaje en este momento: ' + (error.message || 'Error desconocido'));
+            console.error('Error creating trip:', error);
+            Alert.alert('Error', 'We could not create your ride at this time: ' + (error.message || 'Unknown error'));
         } finally {
             setLoading(false);
         }

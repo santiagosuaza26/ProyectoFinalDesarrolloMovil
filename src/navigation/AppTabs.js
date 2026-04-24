@@ -7,11 +7,35 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { HistoryScreen } from '@/screens/HistoryScreen';
 import { ProfileScreen } from '@/screens/ProfileScreen';
+import { RegisterScreen } from '@/screens/RegisterScreen';
+import { LoginScreen } from '@/screens/LoginScreen';
+import { useAppSelector } from '@/store/hooks';
 
 const Tab = createBottomTabNavigator();
 
+const renderTabBarIcon = (route) => ({ focused, color, size }) => {
+  let iconName;
+
+  if (route.name === 'Home') {
+    iconName = focused ? 'car-sport' : 'car-sport-outline';
+  } else if (route.name === 'History') {
+    iconName = focused ? 'time' : 'time-outline';
+  } else if (route.name === 'Profile') {
+    iconName = focused ? 'person' : 'person-outline';
+  } else if (route.name === 'Register' || route.name === 'Auth') {
+    iconName = focused ? 'person-add' : 'person-add-outline';
+  }
+
+  return (
+    <View style={focused ? styles.activeIconContainer : null}>
+      <Ionicons name={iconName} size={size} color={color} />
+    </View>
+  );
+};
+
 export function AppTabs() {
     const { t } = useTranslation();
+    const { userId } = useAppSelector(state => state.auth);
 
     return (
       <Tab.Navigator 
@@ -22,40 +46,41 @@ export function AppTabs() {
           tabBarInactiveTintColor: '#9ca3af',
           tabBarLabelStyle: styles.tabLabel,
           tabBarStyle: styles.tabBar,
-          tabBarIcon: ({ focused, color, size }) => {
-            let iconName;
-
-            if (route.name === 'Home') {
-              iconName = focused ? 'car-sport' : 'car-sport-outline';
-            } else if (route.name === 'History') {
-              iconName = focused ? 'time' : 'time-outline';
-            } else if (route.name === 'Profile') {
-              iconName = focused ? 'person' : 'person-outline';
-            }
-
-            return (
-              <View style={focused ? styles.activeIconContainer : null}>
-                <Ionicons name={iconName} size={size} color={color} />
-              </View>
-            );
-          },
+          tabBarIcon: renderTabBarIcon(route),
         })}
       >
-        <Tab.Screen 
-          name="Home" 
-          component={HomeScreen} 
-          options={{ title: t('home') }}
-        />
-        <Tab.Screen 
-          name="History" 
-          component={HistoryScreen} 
-          options={{ title: t('history') }}
-        />
-        <Tab.Screen 
-          name="Profile" 
-          component={ProfileScreen} 
-          options={{ title: t('profile') }}
-        />
+        {userId ? (
+          <>
+            <Tab.Screen 
+              name="Home" 
+              component={HomeScreen} 
+              options={{ title: t('home') }}
+            />
+            <Tab.Screen 
+              name="History" 
+              component={HistoryScreen} 
+              options={{ title: t('history') }}
+            />
+            <Tab.Screen 
+              name="Profile" 
+              component={ProfileScreen} 
+              options={{ title: t('profile') }}
+            />
+          </>
+        ) : (
+          <>
+            <Tab.Screen 
+              name="Auth" 
+              component={LoginScreen} 
+              options={{ title: t('login') }}
+            />
+            <Tab.Screen 
+              name="Register" 
+              component={RegisterScreen} 
+              options={{ title: t('register') }}
+            />
+          </>
+        )}
       </Tab.Navigator>
     );
 }

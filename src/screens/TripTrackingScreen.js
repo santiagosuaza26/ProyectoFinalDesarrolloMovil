@@ -3,8 +3,6 @@ import { Alert, StyleSheet, Text, View, Image, ScrollView, TouchableOpacity } fr
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { useStripe } from '@stripe/stripe-react-native';
 import { useTranslation } from 'react-i18next';
-import BottomSheet from '@gorhom/bottom-sheet';
-import LottieView from 'lottie-react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Animated, {
   useSharedValue,
